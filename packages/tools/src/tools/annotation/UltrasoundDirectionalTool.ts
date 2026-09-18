@@ -1,10 +1,5 @@
 import { ChangeTypes, Events } from '../../enums';
-import {
-  getEnabledElement,
-  utilities as csUtils,
-  StackViewport,
-  ECGViewport,
-} from '@cornerstonejs/core';
+import { getEnabledElement, utilities as csUtils } from '@cornerstonejs/core';
 import type { Types } from '@cornerstonejs/core';
 
 import { AnnotationTool } from '../base';
@@ -47,7 +42,43 @@ import type {
 import type { StyleSpecifier } from '../../types/AnnotationStyle';
 import { getCalibratedProbeUnitsAndValue } from '../../utilities/getCalibratedUnits';
 import { lineSegment } from '../../utilities/math';
+import { utilities as cornerstoneUtilities } from '@cornerstonejs/core';
+
+const cs3dLogger = cornerstoneUtilities.logger.toolsLog.getLogger(
+  'tools.annotation.UltrasoundDirectionalTool'
+);
 const { transformWorldToIndexContinuous } = csUtils;
+
+/**
+ * Returns true when the viewport shows content that this tool can measure: an
+ * image stack, or an ECG waveform.
+ *
+ * A capability guard alone is not enough. `viewportSupportsImageSlices` reports
+ * which methods a viewport exposes, and the legacy `VolumeViewport` exposes all
+ * four of them, so the guard accepts a volume viewport that this tool cannot
+ * measure. The content question needs `getCurrentMode`, which the generic
+ * viewport families answer. A legacy viewport does not answer it, so the test
+ * falls back to the volume capability for that case.
+ */
+function supportsUltrasoundDirectional(viewport: unknown): boolean {
+  if (csUtils.viewportSupportsWaveform(viewport)) {
+    return true;
+  }
+
+  if (!csUtils.viewportSupportsImageSlices(viewport)) {
+    return false;
+  }
+
+  const contentMode = csUtils.getViewportContentMode(viewport);
+
+  if (contentMode === undefined) {
+    // A legacy viewport. `VolumeViewport` carries `addVolumes` and
+    // `setVolumes`, and `StackViewport` does not.
+    return !csUtils.viewportSupportsVolumeCompatibility(viewport);
+  }
+
+  return !csUtils.viewportIsInVolumeMode(viewport);
+}
 
 /**
  * The `UltrasoundDirectionalTool` class is a tool for creating directional ultrasound annotations.
@@ -117,12 +148,9 @@ class UltrasoundDirectionalTool extends AnnotationTool {
     const enabledElement = getEnabledElement(element);
     const { viewport } = enabledElement;
 
-    if (
-      !(viewport instanceof StackViewport) &&
-      !(viewport instanceof ECGViewport)
-    ) {
+    if (!supportsUltrasoundDirectional(viewport)) {
       throw new Error(
-        'UltrasoundDirectionalTool can only be used on a StackViewport or ECGViewport'
+        'UltrasoundDirectionalTool can only be used on a viewport that shows an image stack (StackViewport) or waveform data (ECGViewport)'
       );
     }
 
@@ -209,10 +237,10 @@ class UltrasoundDirectionalTool extends AnnotationTool {
   };
 
   toolSelectedCallback(
-    evt: EventTypes.InteractionEventType,
-    annotation: Annotation,
-    interactionType: InteractionTypes,
-    canvasCoords?: Types.Point2
+    _evt: EventTypes.InteractionEventType,
+    _annotation: Annotation,
+    _interactionType: InteractionTypes,
+    _canvasCoords?: Types.Point2
   ): void {
     return;
   }
@@ -245,15 +273,13 @@ class UltrasoundDirectionalTool extends AnnotationTool {
 
     this.editData = {
       handleIndex,
+      movingTextBox,
       annotation,
       viewportIdsToRender,
     };
     this._activateModify(element);
 
     hideElementCursor(element);
-
-    const enabledElement = getEnabledElement(element);
-    const { renderingEngine } = enabledElement;
 
     triggerAnnotationRenderForViewportIds(viewportIdsToRender);
 
@@ -289,9 +315,6 @@ class UltrasoundDirectionalTool extends AnnotationTool {
     this._deactivateDraw(element);
     resetElementCursor(element);
 
-    const enabledElement = getEnabledElement(element);
-    const { renderingEngine } = enabledElement;
-
     if (
       this.isHandleOutsideImage &&
       this.configuration.preventHandleOutsideImage
@@ -312,7 +335,6 @@ class UltrasoundDirectionalTool extends AnnotationTool {
   _dragCallback = (evt: EventTypes.InteractionEventType): void => {
     this.isDrawing = true;
     const eventDetail = evt.detail;
-    const { element } = eventDetail;
 
     const { annotation, viewportIdsToRender, handleIndex, movingTextBox } =
       this.editData;
@@ -354,9 +376,6 @@ class UltrasoundDirectionalTool extends AnnotationTool {
     }
 
     this.editData.hasMoved = true;
-
-    const enabledElement = getEnabledElement(element);
-    const { renderingEngine } = enabledElement;
 
     triggerAnnotationRenderForViewportIds(viewportIdsToRender);
   };
@@ -592,7 +611,7 @@ class UltrasoundDirectionalTool extends AnnotationTool {
 
       // If rendering engine has been destroyed while rendering
       if (!viewport.getRenderingEngine()) {
-        console.warn('Rendering Engine has been destroyed');
+        cs3dLogger.warn('Rendering Engine has been destroyed');
         return renderStatus;
       }
 
