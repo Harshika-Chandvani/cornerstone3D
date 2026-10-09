@@ -136,6 +136,14 @@ import type {
   ECGChannel,
   ECGWaveformData,
 } from './ECGViewportTypes';
+import type {
+  TraceRegion,
+  ECGChannelData,
+  ECGPresentationProps,
+  ECGViewState,
+  ECGDataPresentation,
+  ECGProperties,
+} from '../RenderingEngine/GenericViewport/ECG/ECGViewportTypes';
 import type ECGViewportProperties from './ECGViewportProperties';
 import type { ISurface } from './ISurface';
 import type BoundsIJK from './BoundsIJK';
@@ -161,7 +169,7 @@ import type GeometryLoaderFn from './GeometryLoaderFn';
 import type { RenderingEngineModeType } from './RenderingEngineMode';
 import type { VtkOffscreenMultiRenderWindow } from './VtkOffscreenMultiRenderWindow';
 import type { ViewportDataReference } from '../RenderingEngine/GenericViewport';
-import type { ResetCameraOptions } from './ICamera';
+import type { ResetCameraOptions, SetAspectRatioOptions } from './ICamera';
 import type {
   ViewportType,
   ViewportTypeConstants,
@@ -183,6 +191,7 @@ export type {
   IBaseStreamingImageVolume,
   ICamera,
   ResetCameraOptions,
+  SetAspectRatioOptions,
   IStackViewport,
   IVideoViewport,
   IECGViewport,
@@ -314,6 +323,12 @@ export type {
   ECGChannel,
   ECGWaveformData,
   ECGViewportProperties,
+  TraceRegion,
+  ECGChannelData,
+  ECGPresentationProps,
+  ECGViewState,
+  ECGDataPresentation,
+  ECGProperties,
   BoundsIJK,
   BoundsLPS,
   Color,
